@@ -1,28 +1,15 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
-import userModel from "../models/user.model.js";
+import User from '../models/user.model.js';
+import bcryptjs from 'bcryptjs';
 
-export const signUp = async(req,res,next) =>{
-
-    const {username,email,password} =  req.body;
-
-    try{
-
-        const existingUser = await userModel.findOne({email})
-
-        //if user not exist then store password
-        const hasPassword = await bcrypt.hash(password,10);
-
-        //create user for db
-        const user = new userModel({username,email,password: hasPassword})
-
-        await user.save()
-       
-        return res.json({ success: true });
-
-
-    }
-    catch(error){
-        next(error);
-    }
-}
+export const signUp = async (req, res, next) => {
+  const { username, email, password } = req.body;
+  const hashedPassword = bcryptjs.hashSync(password, 10);
+  const newUser = new User({ username, email, password: hashedPassword });
+  try {
+    await newUser.save();
+    
+    res.status(201).json({ success: true, message: "User created successfully!" });
+  } catch (error) {
+    next(error);
+  }
+};
