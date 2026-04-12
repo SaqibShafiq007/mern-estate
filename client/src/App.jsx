@@ -1,11 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
-import SignIn from './pages/SignIn';
 import About from './pages/About';
 import Profile from './Pages/Profile';
 import Header from './components/Header';
 import SignUp from './Pages/SignUp';
+import SignIn from './Pages/SignIN';
+
 
 
 export default function App() {
