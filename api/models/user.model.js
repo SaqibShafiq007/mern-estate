@@ -16,8 +16,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    
-  },
+
+    avatar:{
+      type: String,
+      default: "https://in.pinterest.com/anushkakumari5454/profile-picture/"
+    },
+},
   { timestamps: true }
 );
 
