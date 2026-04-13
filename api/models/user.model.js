@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
 
     avatar:{
       type: String,
-      default: "https://in.pinterest.com/anushkakumari5454/profile-picture/"
+      default: "https://ui-avatars.com/api/?name=User&background=random"
     },
 },
   { timestamps: true }
