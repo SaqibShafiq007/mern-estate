@@ -2,10 +2,11 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import About from './pages/About';
-import Profile from './Pages/Profile';
+
+import Profile from './pages/Profile';
 import Header from './components/Header';
-import SignUp from './Pages/SignUp';
-import SignIn from './Pages/SignIN';
+import SignUp from './pages/SignUp';
+import SignIn from './pages/SignIN';
 import PrivateRoute from './components/PrivateRoute';
 
 
@@ -20,8 +21,9 @@ export default function App() {
         <Route path='/sign-up' element={<SignUp />} />
         <Route path='/about' element={<About />} />
 
-        <Route element={<PrivateRoute />}/>
+        <Route element={<PrivateRoute />}>
           <Route path='/profile' element={<Profile />} />
+        </Route>
 
       </Routes>
     </BrowserRouter>
