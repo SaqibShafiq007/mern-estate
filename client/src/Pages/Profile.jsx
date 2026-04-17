@@ -1,20 +1,38 @@
 import { useSelector } from 'react-redux';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { useNavigate } from 'react-router-dom'; 
+
+import { persistor } from '../redux/store'; 
+
+import { 
+  updateUserStart, 
+  updateUserSuccess, 
+  updateUserFailure ,
+  deleteUserFailure,
+  deleteUserStart,
+  deleteUserSuccess,
+} from '../redux/user/userSlice';
+import { useDispatch } from 'react-redux';
 
 export default function Profile() {
   const fileRef = useRef(null);
-  const { currentUser } = useSelector((state) => state.user);
+  const { currentUser, loading, error } = useSelector((state) => state.user);
   const [fileUploadError, setFileUploadError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatar, setAvatar] = useState(currentUser.avatar);
+  const [formData, setFormData] = useState({});
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 50 * 1024 * 1024) {
+    // Sahand usually uses 2MB limit, you had 50MB. Resetting to 2MB to match the error msg.
+    if (file.size > 2 * 1024 * 1024) {
       setFileUploadError(true);
       return;
     }
@@ -25,30 +43,92 @@ export default function Profile() {
     try {
       const fileName = `avatars/${currentUser._id}-${Date.now()}`;
 
-      // Upload to Supabase Storage
+      // 1. Upload to Supabase Storage
       const { error } = await supabase.storage
-        .from('mern_real_estate')   
+        .from('mern_real_estate')
         .upload(fileName, file, { upsert: true });
 
       if (error) {
-        console.log(error);
         setFileUploadError(true);
         setUploading(false);
         return;
       }
 
-      // Get public URL
+      // 2. Get public URL
       const { data } = supabase.storage
         .from('mern_real_estate')
         .getPublicUrl(fileName);
 
-      setAvatar(data.publicUrl);  
+      // 3. Update local state AND formData so it sends to Backend
+      setAvatar(data.publicUrl);
+      setFormData({ ...formData, avatar: data.publicUrl });
       setUploading(false);
 
     } catch (err) {
-      console.log(err);
       setFileUploadError(true);
       setUploading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: 'POST', // Sahand uses POST for update in this specific video
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      
+      if (data.success === false) {
+        dispatch(updateUserFailure(data.message));
+        return;
+      }
+
+      dispatch(updateUserSuccess(data));
+      setUpdateSuccess(true);
+    } catch (error) {
+      dispatch(updateUserFailure(error.message));
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      dispatch(deleteUserStart());
+      const res = await fetch(`/api/user/delete/${currentUser._id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        dispatch(deleteUserFailure(data.message));
+        return;
+      }
+
+      // ✅ Sign out from Supabase FIRST — kills the session
+      await supabase.auth.signOut();
+
+      // ✅ Then purge localStorage
+      await persistor.purge();
+
+      // ✅ Clear cookie
+      document.cookie = 'access_token=; Max-Age=0; path=/;';
+
+      // ✅ Clear Redux
+      dispatch(deleteUserSuccess());
+
+      // ✅ Navigate
+      navigate('/sign-in');
+
+    } catch (error) {
+      dispatch(deleteUserFailure(error.message));
     }
   };
 
@@ -56,20 +136,20 @@ export default function Profile() {
     <div className='p-3 max-w-lg mx-auto'>
       <h1 className='text-3xl font-semibold text-center my-7'>Profile</h1>
 
-      <form className='flex flex-col gap-4'>
+      <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
         {/* Hidden File Input */}
         <input
           type='file'
           ref={fileRef}
           hidden
           accept='image/*'
-          onChange={handleFileChange}  
+          onChange={handleFileChange}
         />
 
         {/* Profile Image */}
         <img
           onClick={() => fileRef.current.click()}
-          src={avatar}              
+          src={avatar || currentUser.avatar}
           alt='profile'
           className='rounded-full h-24 w-24 object-cover cursor-pointer self-center mt-2'
         />
@@ -80,7 +160,7 @@ export default function Profile() {
             <span className='text-red-700'>Error: Image must be less than 2MB</span>
           ) : uploading ? (
             <span className='text-slate-700'>Uploading...</span>
-          ) : avatar !== currentUser.avatar ? (
+          ) : formData.avatar ? (
             <span className='text-green-700'>Image uploaded successfully!</span>
           ) : ''}
         </p>
@@ -91,6 +171,7 @@ export default function Profile() {
           defaultValue={currentUser.username}
           id='username'
           className='border p-3 rounded-lg'
+          onChange={handleChange}
         />
         <input
           type='email'
@@ -98,16 +179,21 @@ export default function Profile() {
           id='email'
           defaultValue={currentUser.email}
           className='border p-3 rounded-lg'
+          onChange={handleChange}
         />
         <input
           type='password'
           placeholder='password'
           id='password'
           className='border p-3 rounded-lg'
+          onChange={handleChange}
         />
 
-        <button className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'>
-          Update
+        <button
+          disabled={loading || uploading}
+          className='bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:opacity-80'
+        >
+          {loading ? 'Loading...' : 'Update'}
         </button>
 
         <Link
@@ -119,9 +205,18 @@ export default function Profile() {
       </form>
 
       <div className='flex justify-between mt-5'>
-        <span className='text-red-700 cursor-pointer'>Delete account</span>
+        <span 
+          onClick={handleDeleteUser}
+          className='text-red-700 cursor-pointer'>
+          Delete account</span>
+        
         <span className='text-red-700 cursor-pointer'>Sign out</span>
       </div>
+
+      <p className='text-red-700 mt-5'>{error ? error : ''}</p>
+      <p className='text-green-700 mt-5'>
+        {updateSuccess ? 'User is updated successfully!' : ''}
+      </p>
     </div>
   );
 }
