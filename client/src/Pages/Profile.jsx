@@ -13,6 +13,9 @@ import {
   deleteUserFailure,
   deleteUserStart,
   deleteUserSuccess,
+  signOutUserFailure,
+  signOutUserStart,
+  signOutUserSuccess,
 } from '../redux/user/userSlice';
 import { useDispatch } from 'react-redux';
 
@@ -112,19 +115,46 @@ export default function Profile() {
         return;
       }
 
-      // ✅ Sign out from Supabase FIRST — kills the session
+      //Sign out from Supabase FIRST — kills the session
       await supabase.auth.signOut();
 
-      // ✅ Then purge localStorage
+      //Then purge localStorage
       await persistor.purge();
 
-      // ✅ Clear cookie
+     
       document.cookie = 'access_token=; Max-Age=0; path=/;';
 
-      // ✅ Clear Redux
+      
       dispatch(deleteUserSuccess());
 
-      // ✅ Navigate
+      
+      navigate('/sign-in');
+
+    } catch (error) {
+      dispatch(deleteUserFailure(error.message));
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      dispatch(signOutUserStart());
+      const res = await fetch('/api/auth/signout');
+      const data = await res.json();
+      if (data.success === false) {
+        dispatch(deleteUserFailure(data.message));
+        return;
+      }
+
+
+      await supabase.auth.signOut();
+
+      
+      await persistor.purge();
+
+      
+      document.cookie = 'access_token=; Max-Age=0; path=/;';
+
+      dispatch(deleteUserSuccess(data));
       navigate('/sign-in');
 
     } catch (error) {
@@ -210,7 +240,7 @@ export default function Profile() {
           className='text-red-700 cursor-pointer'>
           Delete account</span>
         
-        <span className='text-red-700 cursor-pointer'>Sign out</span>
+        <span onClick={handleSignOut} className='text-red-700 cursor-pointer'>Sign out</span>
       </div>
 
       <p className='text-red-700 mt-5'>{error ? error : ''}</p>
