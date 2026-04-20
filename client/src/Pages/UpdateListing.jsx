@@ -144,7 +144,7 @@ export default function UpdateListing() {
         return;
       }
 
-      navigate('/profile');
+      navigate(`/listing/${params.id}`);
     } catch (error) {
       setError(error.message);
       setLoading(false);

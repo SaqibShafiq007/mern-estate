@@ -127,7 +127,7 @@ export default function CreateListing() {
         return;
       }
 
-      navigate('/profile');
+      navigate(`/listing/${data._id}`);
     } catch (error) {
       setError(error.message);
       setLoading(false);
