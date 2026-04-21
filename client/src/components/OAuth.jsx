@@ -46,7 +46,8 @@ useEffect(() => {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'http://localhost:5173', // ✅ redirect back to your app
+          
+          redirectTo: window.location.origin,    
         },
       });
     } catch (error) {
